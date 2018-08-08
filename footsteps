@@ -1,0 +1,71 @@
+freebsd-update upgrade -r 10.4-RELEASE
+
+freebsd-update upgrade -r 11.1-RELEASE
+
+freebsd-update install
+
+[root]# pkg update
+[root]# pkg install openvpn
+[root]# mkdir /usr/local/etc/openvpn
+[root]# cp -r /usr/local/share/easy-rsa /usr/local/etc/openvpn/easy-rsa
+[root]# vim /usr/local/etc/openvpn/openvpn.conf
+---
+port 50983
+askpass
+proto udp
+dev tun
+ca ca.crt
+cert server.crt
+key server.key
+dh dh.pem
+server 10.8.0.0 255.255.255.0
+keepalive 10 120
+comp-lzo
+persist-key
+persist-tun
+client-cert-not-required
+plugin /usr/local/lib/openvpn/plugins/openvpn-plugin-auth-pam.so login
+status openvpn-status.log
+verb 3
+push "redirect-gateway autolocal def1"
+push "redirect-gateway local def1"
+push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS 8.8.4.4"
+---
+
+[root]# cd /usr/local/etc/openvpn/easy-rsa
+
+[root]# sh
+sh-4.3# ./easyrsa.real init-pki
+sh-4.3# ./easyrsa.real build-ca
+--> set pass : 123987
+
+sh-4.3# ./easyrsa.real build-server-full openvpn-server nopass
+Check if successful:
+sh-4.3# ./easyrsa.real show-cert openvpn-server
+sh-4.3# ./easyrsa.real gen-
+
+exit
+
+Move the server keys:
+[root]# cp pki/dh.pem \
+           pki/ca.crt \
+           pki/issued/openvpn-server.crt \
+           pki/private/openvpn-server.key \
+           /usr/local/etc/openvpn
+
+# cd ..
+# mv openvpn-server.crt server.crt
+# mv openvpn-server.key server.key
+
+[root]# sysrc openvpn_enable="YES"
+[root]# sysrc openvpn_if="tun"
+OpenVPN can now be started.
+[root]# service openvpn start
+Check ifconfig, a new tun interface should appear.
+[root]# vim pwuser.csh
+--
+foreach n (`seq -f 'egg%04g' 0 60`)
+    pw useradd $n -s /sbin/nologin -w random
+end
+--
